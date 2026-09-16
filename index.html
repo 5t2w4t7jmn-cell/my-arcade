@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=no">
+   <title>Cyber-Grid Mobile Arcade Portal</title>
+   <style>
+       :root {
+           --bg-dark: #060608;
+           --panel-dark: #0d0d12;
+           --accent-cyan: #00ffcc;
+           --accent-pink: #ff3366;
+           --accent-gold: #fbbf24;
+           --text-light: #f4f4f7;
+           --border-neon: #1e1e26;
+       }
+       body {
+           margin: 0; padding: 0;
+           background-color: var(--bg-dark);
+           color: var(--text-light);
+           font-family: 'Segoe UI', system-ui, sans-serif;
+           display: flex;
+           flex-direction: column;
+           align-items: center;
+           overflow-x: hidden;
+           width: 100vw;
+       }
+       h2 { font-size: 18px; color: var(--accent-cyan); margin: 10px 0; text-transform: uppercase; }
+       
+       /* Compact Responsive Layout Grid */
+       .player-card {
+           background: #14141d; border: 1px solid #22222f; border-radius: 8px;
+           padding: 8px; width: 90%; max-width: 360px; font-size: 11px; margin-bottom: 8px;
+       }
+       .stat-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+       .stat-val { font-weight: bold; color: var(--accent-gold); }
+
+       .menu-scroller {
+           width: 100%; overflow-x: auto; display: flex; gap: 6px; padding: 5px 10px; box-sizing: border-box;
+           background: var(--panel-dark); border-bottom: 2px solid var(--border-neon);
+       }
+       .game-btn {
+           background: #14141d; border: 1px solid var(--border-neon); color: #a0a0ab;
+           padding: 6px 12px; font-size: 12px; cursor: pointer; border-radius: 6px; white-space: nowrap; transition: 0.2s;
+       }
+       .game-btn.active { background-color: var(--accent-cyan); color: var(--bg-dark); font-weight: bold; }
+
+       .center-stage { display: flex; flex-direction: column; align-items: center; width: 100%; padding: 10px 0; }
+       .arcade-cabinet {
+           background-color: #000; border: 3px solid #22222f; border-radius: 12px;
+           overflow: hidden; width: 92vw; max-width: 360px; aspect-ratio: 4/3; position: relative;
+       }
+       canvas { width: 100%; height: 100%; display: block; background-color: #020203; }
+
+       /* On-Screen Mobile Touch D-Pad Layout Controls */
+       .touch-controls {
+           display: grid; grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px);
+           gap: 8px; margin-top: 12px; justify-content: center; width: 100%;
+       }
+       .t-btn {
+           background: #14141d; border: 2px solid var(--border-neon); color: #fff;
+           border-radius: 50%; font-size: 20px; font-weight: bold; display: flex;
+           align-items: center; justify-content: center; user-select: none; -webkit-user-select: none;
+       }
+       .t-btn:active { background: var(--accent-cyan); color: #000; border-color: var(--accent-cyan); }
+       .action-btn-container { display: flex; justify-content: center; gap: 20px; width: 100%; margin-top: 10px; }
+       .act-btn {
+           background: #ff3366; color: #fff; border: 2px solid var(--border-neon);
+           padding: 12px 25px; border-radius: 8px; font-weight: bold; font-size: 14px; min-width: 100px; text-align: center;
+       }
+       .act-btn:active { background: #fff; color: #000; }
+
+       .controls-hint { font-size: 12px; color: #9494a1; margin: 8px 15px; text-align: center; max-width: 340px; }
+   </style>
+</head>
+<body>
+
+   <h2>⚡ CYBER-GRID</h2>
+   
+   <div class="player-card">
+       <div class="stat-row"><span>Rank:</span><span id="ui-rank" class="stat-val">Novice</span></div>
+       <div class="stat-row"><span>Coins:</span><span id="ui-coins" style="color:var(--accent-gold); font-weight:bold;">0</span></div>
+   </div>
+   
+   <!-- Horizontal Swipeable Menu for Mobile Phone Screens -->
+   <div class="menu-scroller">
+       <button id="btn-fnaf" class="game-btn active" onclick="loadGame('fnaf')">🐻 FNAF 2D</button>
+       <button id="btn-granny" class="game-btn" onclick="loadGame('granny')">👵 Granny</button>
+       <button id="btn-snake" class="game-btn" onclick="loadGame('snake')">🐍 Snake</button>
+       <button id="btn-brick" class="game-btn" onclick="loadGame('brick')">🧱 Bricks</button>
+       <button id="btn-pong" class="game-btn" onclick="loadGame('pong')">🏓 Pong</button>
+   </div>
+
+   <div class="center-stage">
+       <div class="arcade-cabinet" id="cabinet">
+           <!-- Canvas locked to standard 4:3 native ratio dimensions internally -->
+           <canvas id="canvas" width="600" height="450"></canvas>
+       </div>
+       <div id="controls-hint" class="controls-hint">Loading layout...</div>
+   </div>
+
+   <!-- D-PAD CONTROLS -->
+   <div class="touch-controls">
+       <div></div>
+       <div class="t-btn" ontouchstart="pressKey('ArrowUp')" ontouchend="releaseKey('ArrowUp')">▲</div>
+       <div></div>
+       <div class="t-btn" ontouchstart="pressKey('ArrowLeft')" ontouchend="releaseKey('ArrowLeft')">◀</div>
+       <div style="background:none; border:none;" class="t-btn">🕹️</div>
+       <div class="t-btn" ontouchstart="pressKey('ArrowRight')" ontouchend="releaseKey('ArrowRight')">▶</div>
+       <div></div>
+       <div class="t-btn" ontouchstart="pressKey('ArrowDown')" ontouchend="releaseKey('ArrowDown')">▼</div>
+       <div></div>
+   </div>
+
+   <!-- SPECIAL INTERACTION ACTION BUTTONS FOR FNAF / HORROR MODES -->
+   <div class="action-btn-container">
+       <div class="act-btn" style="background:#a855f7;" ontouchstart="pressKey('Space')" ontouchend="releaseKey('Space')">🎭 MASK</div>
+       <div class="act-btn" style="background:#fbbf24;" ontouchstart="pressKey('KeyL')" ontouchend="releaseKey('KeyL')">🔦 LIGHT</div>
+   </div>
+
+   <script>
+       const canvas = document.getElementById('canvas');
+       const ctx = canvas.getContext('2d');
+       const hint = document.getElementById('controls-hint');
+       const cabinet = document.getElementById('cabinet');
+
+       let activeGame = 'fnaf';
+       let loopRef = null;
+       let keys = {};
+       let activeColor = '#00ffcc';
+
+       let profile = { xp: 0, level: 1, coins: 0, rank: 'Novice' };
+       if(localStorage.getItem('cyber_arcade_profile')) {
+           profile = JSON.parse(localStorage.getItem('cyber_arcade_profile'));
+       }
+
+       // Touch Control Engine Mapping Functions
+       function pressKey(code) { keys[code] = true; }
+       function releaseKey(code) { keys[code] = false; }
+
+       function updateProfileUI() {
+           document.getElementById('ui-coins').innerText = profile.coins;
+           document.getElementById('ui-rank').innerText = profile.rank;
+           cabinet.style.borderColor = activeColor;
+       }
+
+       function addRewards(coinAmt) {
+           profile.coins += coinAmt;
+           if(profile.coins > 100) profile.rank = "Pro Gamer";
+           localStorage.setItem('cyber_arcade_profile', JSON.stringify(profile));
+           updateProfileUI();
+       }
+
+       function clearAllMechanics() { if(loopRef) cancelAnimationFrame(loopRef); ctx.clearRect(0,0,600,450); }
+
+       function loadGame(gameKey) {
+           activeGame = gameKey;
+           document.querySelectorAll('.game-btn').forEach(b => b.classList.remove('active'));
+           document.getElementById(`btn-${gameKey}`).classList.add('active');
+           clearAllMechanics();
+           keys = {}; // clear stuck flags
+           if(gameKey === 'fnaf') startFnaf();
+           else if(gameKey === 'granny') startGranny();
+           else if(gameKey === 'snake') startSnake();
+           else if(gameKey === 'brick') startBrick();
+           else if(gameKey === 'pong') startPong();
+       }
+
+       // --- FNAF ---
+       let fnafPower, fnafTime, freddyProgress;
+       function startFnaf() {
+           hint.innerText = "FNAF: Hold [MASK] button if threat level spikes. Hold [LIGHT] to check hallway.";
+           fnafPower = 100; fnafTime = 0; freddyProgress = 0;
+           let tick = 0;
+           function run() {
+               tick++;
+               let maskOn = keys['Space'] ? true : false;
+               let lightOn = keys['KeyL'] ? true : false;
+
+               if(tick % 60 === 0) { fnafTime++; fnafPower -= maskOn || lightOn ? 0.9 : 0.15; }
+               if(tick % 80 === 0) { if(!maskOn) freddyProgress += Math.floor(Math.random()*15); else freddyProgress -= 10; if(freddyProgress<0) freddyProgress=0; }
+
+               if(freddyProgress >= 100) { alert("JUMPSCARE! Freddy caught you."); return startFnaf(); }
+               if(fnafPower <= 0) { alert("Power Lost!"); return startFnaf(); }
+               if(fnafTime >= 45) { alert("6 AM! Shift Complete!"); addRewards(30); return startFnaf(); }
+
+               ctx.fillStyle = '#050508'; ctx.fillRect(0,0,600,450);
+               ctx.fillStyle = lightOn ? '#2d2d3d' : '#010103'; ctx.fillRect(160, 100, 280, 250);
+
+               if(freddyProgress > 30) {
+                   ctx.fillStyle = lightOn ? '#fbbf24' : '#140a05';
+                   ctx.beginPath(); ctx.arc(300, 220, freddyProgress * 0.5, 0, Math.PI*2); ctx.fill();
+               }
+               if(maskOn) { ctx.strokeStyle = 'rgba(0,255,204,0.3)'; ctx.lineWidth = 40; ctx.strokeRect(0,0,600,450); }
+
+               ctx.fillStyle = activeColor; ctx.font = '16px monospace';
+               ctx.fillText(`POWER: ${Math.floor(fnafPower)}%`, 30, 40);
+               ctx.fillText(`TIME: ${Math.floor(fnafTime/8)} AM`, 460, 40);
+               ctx.fillStyle = '#ff3366'; ctx.fillText(`THREAT: ${freddyProgress}%`, 30, 70);
+
+               if(activeGame === 'fnaf') loopRef = requestAnimationFrame(run);
+           }
+           loopRef = requestAnimationFrame(run);
+       }
+
+       // --- GRANNY ---
